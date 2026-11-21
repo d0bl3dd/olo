@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Dibuja y Adivina — Local 2 Jugadores</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+/* =============================================================
+   DIBUJA Y ADIVINA — tema "pizarrón de juego"
+   Un tablero oscuro con tizas de colores alrededor de una hoja
+   de papel real donde se dibuja. La tipografía de marcador y
+   los bordes punteados vienen del objeto físico que imita: un
+   pizarrón de juegos familiares, no una app corporativa.
+   ============================================================= */
+
+:root{
+  /* Chrome del pizarrón */
+  --board:        #16211b;
+  --board-raised: #1d2e25;
+  --board-line:   rgba(243, 239, 224, 0.16);
+  --board-line-strong: rgba(243, 239, 224, 0.32);
+
+  /* Texto tipo tiza */
+  --chalk:      #f4efe1;
+  --chalk-dim:  rgba(244, 239, 225, 0.62);
+  --chalk-faint:rgba(244, 239, 225, 0.4);
+
+  /* Tizas de colores (acentos) */
+  --coral:   #ff6f59;
+  --coral-ink: #3d1710;
+  --sky:     #5fc6dc;
+  --sky-ink: #0b2f36;
+  --yellow:  #ffc94d;
+  --yellow-ink: #3d2c03;
+  --mint:    #78d6a0;
+  --mint-ink:#0d3321;
+
+  /* La hoja de papel donde se dibuja de verdad */
+  --paper:      #faf3e2;
+  --paper-edge: #e4d6ae;
+
+  --radius-card: 14px;
+  --radius-pill: 999px;
+  color-scheme: dark;
+}
+
+*{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body{ height: 100%; }
+
+body{
+  margin:0;
+  background: var(--board);
+  background-image:
+    radial-gradient(ellipse at 15% -10%, rgba(255,111,89,0.10), transparent 45%),
+    radial-gradient(ellipse at 100% 0%, rgba(95,198,220,0.10), transparent 40%),
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 34px);
+  color: var(--chalk);
+  font-family: "Nunito", system-ui, -apple-system, sans-serif;
+  min-height: 100%;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  overflow-x: hidden;
+}
+
+#app{
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  display:flex;
+  flex-direction: column;
+  padding: 22px 18px 30px;
+}
+
+.screen{ display:none; flex:1; flex-direction:column; }
+.screen.active{ display:flex; }
+.screen-center{ justify-content:center; }
+
+h1,h2{ font-family: "Permanent Marker", cursive; font-weight:400; margin:0; line-height:1.15; }
+
+/* ---------- Encabezado de la pantalla de inicio ---------- */
+.board-header{ text-align:center; margin-bottom: 22px; position:relative; }
+.wordmark{
+  font-size: 40px;
+  color: var(--chalk);
+  text-shadow: 3px 3px 0 var(--coral-ink), 0 0 22px rgba(255,111,89,0.25);
+  transform: rotate(-1.5deg);
+}
+.tagline{
+  margin: 10px 0 0;
+  color: var(--chalk-dim);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* ---------- Tarjetas tipo "recuadro de tiza" ---------- */
+.card{
+  --accent: var(--coral);
+  background: var(--board-raised);
+  border: 2px dashed var(--board-line-strong);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius-card);
+  padding: 16px 18px;
+  margin-bottom: 14px;
+}
+.card-head{ display:flex; align-items:center; gap:9px; margin-bottom: 6px; }
+.card-dot{
+  width:10px; height:10px; border-radius:50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+  flex:none;
+}
+.card h2{ font-size: 19px; color: var(--chalk); }
+.muted{ color: var(--chalk-dim); font-size: 13.5px; line-height:1.45; margin: 2px 0 12px; }
+.field-hint{ color: var(--chalk-faint); font-size: 12.5px; font-weight:700; margin: 0 0 10px; }
+
+/* ---------- Botones ---------- */
+button{ font-family: inherit; cursor:pointer; }
+.btn{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  width:100%;
+  padding: 13px 18px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: var(--chalk);
+  color: var(--board);
+  font-size: 16px;
+  font-weight:800;
+  box-shadow: 0 3px 0 rgba(0,0,0,0.35);
+  transition: transform .08s ease, box-shadow .08s ease;
+}
+.btn:active{ transform: translateY(2px); box-shadow: 0 1px 0 rgba(0,0,0,0.35); }
+.btn-primary{ background: var(--coral); color: var(--coral-ink); }
+.btn-accent{ background: var(--sky); color: var(--sky-ink); }
+.btn-ghost{ background: transparent; color: var(--chalk-dim); box-shadow:none; border: 2px dashed var(--board-line-strong); }
+.btn-sm{ padding: 9px 14px; font-size: 13.5px; width:auto; }
+.btn-big{ font-size: 18px; padding: 17px; margin-top: 4px; }
+.btn-wide{ max-width: 280px; }
+.btn[disabled]{ opacity:.4; pointer-events:none; }
+
+/* ---------- Chips de configuración ---------- */
+.chip-group{ display:flex; flex-wrap:wrap; gap:9px; }
+.chip{
+  padding: 10px 16px;
+  border-radius: var(--radius-pill);
+  border: 2px solid var(--board-line-strong);
+  background: transparent;
+  color: var(--chalk-dim);
+  font-size: 14px;
+  font-weight:800;
+}
+.chip.selected{
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--board);
+}
+
+.players-row{ display:flex; align-items:center; gap:10px; }
+.players-row input{
+  flex:1;
+  min-width:0;
+  padding: 11px 12px;
+  border-radius: 8px;
+  border: 2px solid var(--board-line-strong);
+  font-size: 15px;
+  font-weight:700;
+  font-family: inherit;
+  background: rgba(244,239,225,0.06);
+  color: var(--chalk);
+}
+.players-row input::placeholder{ color: var(--chalk-faint); }
+.players-row .vs{ font-family:"Permanent Marker",cursive; color: var(--coral); font-size:14px; flex:none; }
+
+.cat-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:9px; }
+.cat-chip{
+  padding: 11px 8px;
+  border-radius: 9px;
+  border: 2px solid var(--board-line-strong);
+  background: transparent;
+  color: var(--chalk-dim);
+  font-size: 13px;
+  font-weight:700;
+  text-align:center;
+}
+.cat-chip.selected{ background: var(--mint); border-color: var(--mint); color: var(--mint-ink); }
+
+/* ---------- Pantallas centradas (pasar teléfono, ronda, ganador) ---------- */
+.pass-wrap, .winner-wrap{
+  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  text-align:center; gap:16px;
+}
+.turn-badge{
+  font-size: 12px; font-weight:800; letter-spacing: 0.3px;
+  background: var(--board-raised); border: 2px dashed var(--board-line-strong);
+  color: var(--chalk-dim); padding: 6px 14px; border-radius: var(--radius-pill);
+}
+.pass-icon{ font-size: 54px; }
+.pass-wrap h2{ font-size: 24px; color: var(--chalk); }
+.pass-name{ color: var(--coral); }
+.score-pill{
+  display:inline-flex; gap:14px; padding:11px 20px; border-radius:var(--radius-pill);
+  border: 2px solid var(--board-line-strong); background: var(--board-raised);
+  font-weight:800; font-size:14px; color: var(--chalk);
+}
+
+/* ---------- Pantalla de dibujar / adivinar ---------- */
+.game-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom: 10px; gap:10px; }
+.turn-tag{
+  font-size: 12.5px; font-weight:800; background: var(--sky); color: var(--sky-ink);
+  padding:7px 14px; border-radius: var(--radius-pill);
+}
+.timer{
+  font-family: "Permanent Marker", cursive;
+  font-size: 26px;
+  min-width: 58px;
+  text-align:center;
+  color: var(--chalk);
+}
+.timer.warn{ color: var(--coral); }
+
+.word-banner{
+  background: var(--board-raised);
+  border: 2px dashed var(--board-line-strong);
+  color: var(--chalk);
+  border-radius: 10px;
+  padding: 12px 14px;
+  text-align:center;
+  margin-bottom: 10px;
+  font-size: 19px;
+  font-weight:800;
+  letter-spacing: 0.3px;
+  word-break: break-word;
+}
+.word-banner-lg{ font-size: 25px; padding: 22px; margin: 4px 0; }
+.cat-label{ display:block; font-size:12px; font-weight:700; opacity:.7; margin-bottom:5px; }
+
+/* El lienzo es una HOJA DE PAPEL real — contraste deliberado con el resto oscuro */
+.canvas-wrap{
+  position:relative;
+  background: var(--paper);
+  border: 3px solid var(--paper-edge);
+  border-radius: var(--radius-card);
+  box-shadow: 0 6px 0 rgba(0,0,0,0.35), inset 0 0 0 1px rgba(0,0,0,0.04);
+  overflow:hidden;
+  touch-action:none;
+  flex: 1 1 auto;
+  min-height: 260px;
+  margin-bottom: 12px;
+}
+#board{ width:100%; height:100%; display:block; touch-action:none; }
+
+.tools{ display:flex; align-items:center; gap:10px; margin-bottom: 12px; flex-wrap:wrap; }
+.swatches{ display:flex; gap:7px; }
+.swatch{
+  width: 28px; height: 28px; border-radius:50%; border:2px solid var(--board-line-strong);
+  padding:0; flex:none;
+}
+.swatch.selected{ box-shadow: 0 0 0 3px var(--board), 0 0 0 5px var(--chalk); }
+.tool-actions{ display:flex; gap:8px; margin-left:auto; }
+.tool-btn{
+  width:38px; height:38px; border-radius:50%; border:2px solid var(--board-line-strong);
+  background: var(--board-raised); font-size:16px; display:flex; align-items:center; justify-content:center; flex:none;
+}
+.tool-btn.selected{ background: var(--yellow); border-color: var(--yellow); }
+.size-range{ flex:1; min-width: 60px; accent-color: var(--coral); }
+
+.guess-row{ display:flex; gap:10px; }
+
+/* ---------- Ganador ---------- */
+.winner-wrap .trophy{ font-size: 68px; }
+.winner-wrap h1{ font-size: 28px; color: var(--yellow); text-shadow: 2px 2px 0 var(--yellow-ink); }
+
+footer{ text-align:center; font-size: 11.5px; color: var(--chalk-faint); margin-top: 12px; }
+
+@media (max-height: 640px){
+  .canvas-wrap{ min-height: 200px; }
+  .wordmark{ font-size: 32px; }
+}
+
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ============ PANTALLA: INICIO / CONFIGURACIÓN ============ -->
+  <section id="screen-setup" class="screen active">
+    <div class="board-header">
+      <div class="chalk-dust"></div>
+      <h1 class="wordmark">Dibuja<br>y Adivina</h1>
+      <p class="tagline">Pasá el teléfono. Dibujá. Adiviná. Repetí.</p>
+    </div>
+
+    <div class="card" style="--accent: var(--coral);">
+      <div class="card-head"><span class="card-dot"></span><h2>Jugadores</h2></div>
+      <p class="muted">Se van turnando el teléfono: uno dibuja, el otro adivina.</p>
+      <div class="players-row">
+        <input id="p1name" type="text" maxlength="14" placeholder="Jugador 1" value="Jugador 1">
+        <span class="vs">vs</span>
+        <input id="p2name" type="text" maxlength="14" placeholder="Jugador 2" value="Jugador 2">
+      </div>
+    </div>
+
+    <div class="card" style="--accent: var(--sky);">
+      <div class="card-head"><span class="card-dot"></span><h2>Puntos para ganar</h2></div>
+      <p class="field-hint">¿Hasta dónde llega el marcador?</p>
+      <div class="chip-group" id="pointsGroup">
+        <button class="chip" data-val="10">10</button>
+        <button class="chip selected" data-val="15">15</button>
+        <button class="chip" data-val="20">20</button>
+        <button class="chip" data-val="30">30</button>
+      </div>
+    </div>
+
+    <div class="card" style="--accent: var(--yellow);">
+      <div class="card-head"><span class="card-dot"></span><h2>Tiempo por turno</h2></div>
+      <p class="field-hint">Segundos para dibujar y adivinar</p>
+      <div class="chip-group" id="timeGroup">
+        <button class="chip" data-val="45">45s</button>
+        <button class="chip selected" data-val="60">60s</button>
+        <button class="chip" data-val="90">90s</button>
+        <button class="chip" data-val="120">120s</button>
+      </div>
+    </div>
+
+    <div class="card" style="--accent: var(--mint);">
+      <div class="card-head"><span class="card-dot"></span><h2>Categorías</h2></div>
+      <p class="field-hint">Tocá para activar o desactivar</p>
+      <div class="cat-grid" id="catGrid"></div>
+    </div>
+
+    <button class="btn btn-primary btn-big" id="startBtn">Empezar partida</button>
+    <footer>Sin conexión. Sin cuentas. Sin servidores. Solo ustedes dos y el teléfono.</footer>
+  </section>
+
+  <!-- ============ PANTALLA: PASAR TELÉFONO ============ -->
+  <section id="screen-pass" class="screen screen-center">
+    <div class="pass-wrap">
+      <div class="turn-badge">Turno de dibujar</div>
+      <div class="pass-icon">📱</div>
+      <h2>Pasale el teléfono a<br><span class="pass-name" id="passName">Jugador 1</span></h2>
+      <div class="score-pill" id="passScores"></div>
+      <button class="btn btn-primary btn-wide" id="passReadyBtn">Ya lo tengo, ¡listo!</button>
+    </div>
+  </section>
+
+  <!-- ============ PANTALLA: VISTA PREVIA DE PALABRA (solo quien dibuja) ============ -->
+  <section id="screen-reveal" class="screen screen-center">
+    <div class="pass-wrap">
+      <p class="muted">Tu palabra es...</p>
+      <div class="word-banner word-banner-lg" id="revealWord"></div>
+      <p class="muted">No le muestres la pantalla a quien adivina. Dibujá sin usar letras ni números.</p>
+      <button class="btn btn-primary btn-wide" id="goDrawBtn">Empezar a dibujar</button>
+      <button class="btn btn-ghost btn-sm" id="skipWordBtn">↻ Cambiar palabra</button>
+    </div>
+  </section>
+
+  <!-- ============ PANTALLA: DIBUJAR / ADIVINAR ============ -->
+  <section id="screen-play" class="screen">
+    <div class="game-top">
+      <div class="turn-tag" id="playTurnTag">Dibuja: Jugador 1</div>
+      <div class="timer" id="timerLabel">60</div>
+    </div>
+
+    <div class="word-banner">
+      <span class="cat-label" id="playCatLabel">Objetos</span>
+      <span id="playWord">—</span>
+    </div>
+
+    <div class="canvas-wrap">
+      <canvas id="board"></canvas>
+    </div>
+
+    <div class="tools">
+      <div class="swatches">
+        <button class="swatch selected" data-color="#1b1f1c" style="background:#1b1f1c"></button>
+        <button class="swatch" data-color="#ff6f59" style="background:#ff6f59"></button>
+        <button class="swatch" data-color="#2f8f6a" style="background:#2f8f6a"></button>
+        <button class="swatch" data-color="#3a86c8" style="background:#3a86c8"></button>
+        <button class="swatch" data-color="#ffb627" style="background:#ffb627"></button>
+      </div>
+      <input type="range" class="size-range" id="sizeRange" min="2" max="22" value="6">
+      <div class="tool-actions">
+        <button class="tool-btn" id="eraserBtn" title="Goma">🧽</button>
+        <button class="tool-btn" id="clearBtn" title="Borrar todo">🗑️</button>
+      </div>
+    </div>
+
+    <div class="guess-row">
+      <button class="btn btn-ghost btn-sm" id="passTurnBtn">Pasar palabra</button>
+      <button class="btn btn-primary" id="correctBtn">✔ ¡Lo adivinó!</button>
+    </div>
+  </section>
+
+  <!-- ============ PANTALLA: RESULTADO DE RONDA ============ -->
+  <section id="screen-roundend" class="screen screen-center">
+    <div class="pass-wrap">
+      <div class="pass-icon" id="roundIcon">⏱️</div>
+      <h2 id="roundTitle">¡Se acabó el tiempo!</h2>
+      <p class="muted" id="roundSubtitle">La palabra era: <strong id="roundWordWas"></strong></p>
+      <div class="score-pill" id="roundScores"></div>
+      <button class="btn btn-primary btn-wide" id="nextRoundBtn">Siguiente turno</button>
+    </div>
+  </section>
+
+  <!-- ============ PANTALLA: GANADOR ============ -->
+  <section id="screen-winner" class="screen screen-center">
+    <div class="winner-wrap">
+      <div class="trophy">🏆</div>
+      <h1 id="winnerName">¡Jugador 1 gana!</h1>
+      <p class="muted" id="winnerDetail"></p>
+      <button class="btn btn-primary btn-wide" id="playAgainBtn">Jugar otra vez</button>
+      <button class="btn btn-ghost" id="backSetupBtn">Cambiar configuración</button>
+    </div>
+  </section>
+
+</div>
+<script>
+/* =========================================================
+   BANCO DE PALABRAS — 4 categorías, estilo clásico de dibujar y adivinar
+   ========================================================= */
+const WORD_BANK = {
+  personas: {
+    label: "🧑‍🤝‍🧑 Personas, animales y lugares",
+    words: [
+      "Bombero","Astronauta","Pirata","Bailarina","Cocinero","Payaso","Policía","Profesor",
+      "Abuela","Bebé","Sirena","Vampiro","Fantasma","Robot","Superhéroe","Mago",
+      "Perro","Gato","Elefante","Jirafa","Pingüino","Canguro","Tiburón","Murciélago",
+      "Pulpo","Camello","Cocodrilo","Mariposa","Araña","Búho","Loro","Caballo",
+      "Playa","Montaña","Desierto","Castillo","Volcán","Granja","Ciudad","Selva",
+      "Isla","Cueva","Iglesia","Estadio","Aeropuerto","Biblioteca","Cementerio","Circo",
+      "Oso panda","Koala","Delfín","Flamenco","Erizo","Dinosaurio","Unicornio","Dragón"
+    ]
+  },
+  objetos: {
+    label: "📦 Objetos",
+    words: [
+      "Paraguas","Bicicleta","Computador","Reloj","Silla","Guitarra","Tijeras","Llave",
+      "Lámpara","Espejo","Maleta","Cámara","Teléfono","Zapato","Sombrero","Anteojos",
+      "Cepillo de dientes","Tenedor","Olla","Escoba","Martillo","Destornillador","Cinturón","Billetera",
+      "Mochila","Paraguas roto","Cafetera","Horno","Nevera","Ventilador","Plancha","Microondas",
+      "Globo","Vela","Linterna","Brújula","Mapa","Carpa","Escalera","Candado",
+      "Jeringa","Termómetro","Balanza","Bufanda","Guantes","Casco","Pelota","Cometa",
+      "Ancla","Timón","Hacha","Pala","Regadera","Tetera","Frasco","Tambor"
+    ]
+  },
+  acciones: {
+    label: "🏃 Acciones",
+    words: [
+      "Nadar","Bailar","Dormir","Correr","Saltar","Llorar","Reír","Cantar",
+      "Cocinar","Estudiar","Pescar","Escalar","Conducir","Volar","Nadar bajo el agua","Aplaudir",
+      "Estornudar","Bostezar","Pelear","Abrazar","Besar","Gritar","Susurrar","Esconderse",
+      "Patinar","Surfear","Esquiar","Remar","Bucear","Acampar","Pintar","Dibujar",
+      "Tejer","Cepillarse el pelo","Lavar los platos","Planchar","Afeitarse","Maquillarse","Meditar","Rezar",
+      "Pelar una fruta","Hacer ejercicio","Levantar pesas","Hacer yoga","Jugar ajedrez","Tocar el piano","Escalar una montaña","Hacer trampa",
+      "Robar","Votar","Casarse","Mudarse","Graduarse","Discutir","Negociar","Reconciliarse"
+    ]
+  },
+  dificil: {
+    label: "🧠 Difícil",
+    words: [
+      "Nostalgia","Libertad","Justicia","Envidia","Esperanza","Soledad","Paciencia","Confianza",
+      "Democracia","Inflación","Gravedad","Electricidad","Fotosíntesis","Evolución","Reciclaje","Contaminación",
+      "Gentrificación","Procrastinar","Déjà vu","Karma","Destino","Coincidencia","Imaginación","Creatividad",
+      "Insomnio","Ansiedad","Adicción","Burocracia","Corrupción","Diplomacia","Globalización","Inteligencia artificial",
+      "Criptomoneda","Metaverso","Streaming","Algoritmo","Viralizar","Procrastinación","Meditación","Introspección",
+      "Autoestima","Empatía","Ironía","Sarcasmo","Paradoja","Simetría","Infinito","Tiempo",
+      "Silencio incómodo","Resaca","Jet lag","Síndrome del impostor","Crisis de los 30","Amor a primera vista","Flechazo","Despecho"
+    ]
+  }
+};
+
+/* =========================================================
+   ESTADO DEL JUEGO
+   ========================================================= */
+const state = {
+  players: ["Jugador 1", "Jugador 2"],
+  scores: [0, 0],
+  pointsToWin: 15,
+  turnSeconds: 60,
+  activeCats: Object.keys(WORD_BANK),
+  usedWords: new Set(),
+  turnCount: 0,        // cuenta total de turnos jugados
+  currentDrawerIdx: 0, // índice en state.players de quien dibuja este turno
+  currentWord: "",
+  currentCatKey: "",
+  timer: null,
+  timeLeft: 0,
+  roundResolved: false,
+  history: []
+};
+
+const $ = (sel) => document.querySelector(sel);
+const $all = (sel) => document.querySelectorAll(sel);
+
+function showScreen(id){
+  $all(".screen").forEach(s => s.classList.remove("active"));
+  $("#" + id).classList.add("active");
+}
+
+/* =========================================================
+   PANTALLA DE CONFIGURACIÓN
+   ========================================================= */
+function buildCatGrid(){
+  const grid = $("#catGrid");
+  grid.innerHTML = "";
+  Object.entries(WORD_BANK).forEach(([key, cat]) => {
+    const btn = document.createElement("button");
+    btn.className = "cat-chip selected";
+    btn.dataset.key = key;
+    btn.textContent = cat.label;
+    btn.addEventListener("click", () => {
+      btn.classList.toggle("selected");
+      const anySelected = $all(".cat-chip.selected").length > 0;
+      if (!anySelected){ btn.classList.add("selected"); } // al menos una categoría activa
+    });
+    grid.appendChild(btn);
+  });
+}
+buildCatGrid();
+
+function wireChipGroup(groupId, onPick){
+  $all(`#${groupId} .chip`).forEach(chip => {
+    chip.addEventListener("click", () => {
+      $all(`#${groupId} .chip`).forEach(c => c.classList.remove("selected"));
+      chip.classList.add("selected");
+      onPick(parseInt(chip.dataset.val, 10));
+    });
+  });
+}
+wireChipGroup("pointsGroup", (v) => state.pointsToWin = v);
+wireChipGroup("timeGroup", (v) => state.turnSeconds = v);
+
+$("#startBtn").addEventListener("click", () => {
+  const n1 = $("#p1name").value.trim() || "Jugador 1";
+  const n2 = $("#p2name").value.trim() || "Jugador 2";
+  state.players = [n1, n2];
+  state.scores = [0, 0];
+  state.usedWords = new Set();
+  state.turnCount = 0;
+  state.currentDrawerIdx = 0;
+  state.history = [];
+  state.activeCats = Array.from($all(".cat-chip.selected")).map(c => c.dataset.key);
+  if (state.activeCats.length === 0) state.activeCats = Object.keys(WORD_BANK);
+  startTurnFlow();
+});
+
+/* =========================================================
+   FLUJO DE TURNO: pasar teléfono -> ver palabra -> dibujar -> resultado
+   ========================================================= */
+function pickWord(){
+  const catKey = state.activeCats[Math.floor(Math.random() * state.activeCats.length)];
+  const pool = WORD_BANK[catKey].words.filter(w => !state.usedWords.has(w));
+  const list = pool.length ? pool : WORD_BANK[catKey].words; // si se agotaron, reinicia esa categoría
+  if (!pool.length){ WORD_BANK[catKey].words.forEach(w => state.usedWords.delete(w)); }
+  const word = list[Math.floor(Math.random() * list.length)];
+  state.usedWords.add(word);
+  state.currentWord = word;
+  state.currentCatKey = catKey;
+}
+
+function scorePillHTML(){
+  return state.players.map((p, i) => `${p}: ${state.scores[i]} pts`).join("   •   ");
+}
+
+function startTurnFlow(){
+  pickWord();
+  const drawerName = state.players[state.currentDrawerIdx];
+  $("#passName").textContent = drawerName;
+  $("#passScores").textContent = scorePillHTML();
+  showScreen("screen-pass");
+}
+
+$("#passReadyBtn").addEventListener("click", () => {
+  $("#revealWord").innerHTML = `<span class="cat-label" style="display:block;font-size:11px;opacity:.7;margin-bottom:6px;text-transform:uppercase;letter-spacing:1.5px;">${WORD_BANK[state.currentCatKey].label}</span>${state.currentWord}`;
+  showScreen("screen-reveal");
+});
+
+$("#skipWordBtn").addEventListener("click", () => {
+  pickWord();
+  $("#revealWord").innerHTML = `<span class="cat-label" style="display:block;font-size:11px;opacity:.7;margin-bottom:6px;text-transform:uppercase;letter-spacing:1.5px;">${WORD_BANK[state.currentCatKey].label}</span>${state.currentWord}`;
+});
+
+$("#goDrawBtn").addEventListener("click", () => {
+  beginDrawing();
+});
+
+/* =========================================================
+   LIENZO DE DIBUJO
+   ========================================================= */
+let ctx, drawing = false, lastX = 0, lastY = 0, currentColor = "#1b1f1c", currentSize = 6, isEraser = false;
+
+function setupCanvas(){
+  const canvas = $("#board");
+  const wrap = canvas.parentElement;
+  const ratio = window.devicePixelRatio || 1;
+  const rect = wrap.getBoundingClientRect();
+  canvas.width = rect.width * ratio;
+  canvas.height = rect.height * ratio;
+  canvas.style.width = rect.width + "px";
+  canvas.style.height = rect.height + "px";
+  ctx = canvas.getContext("2d");
+  ctx.scale(ratio, ratio);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  clearCanvas();
+}
+
+function clearCanvas(){
+  if (!ctx) return;
+  const canvas = $("#board");
+  ctx.save();
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.fillStyle = "#faf3e2";
+  ctx.fillRect(0,0,canvas.width, canvas.height);
+  ctx.restore();
+}
+
+function getPos(evt){
+  const canvas = $("#board");
+  const rect = canvas.getBoundingClientRect();
+  const point = evt.touches ? evt.touches[0] : evt;
+  return { x: point.clientX - rect.left, y: point.clientY - rect.top };
+}
+
+function startDraw(evt){
+  evt.preventDefault();
+  drawing = true;
+  const pos = getPos(evt);
+  lastX = pos.x; lastY = pos.y;
+  ctx.beginPath();
+  ctx.arc(pos.x, pos.y, (isEraser ? currentSize*1.8 : currentSize) / 2, 0, Math.PI*2);
+  ctx.fillStyle = isEraser ? "#faf3e2" : currentColor;
+  ctx.fill();
+}
+function moveDraw(evt){
+  if (!drawing) return;
+  evt.preventDefault();
+  const pos = getPos(evt);
+  ctx.strokeStyle = isEraser ? "#faf3e2" : currentColor;
+  ctx.lineWidth = isEraser ? currentSize*1.8 : currentSize;
+  ctx.beginPath();
+  ctx.moveTo(lastX, lastY);
+  ctx.lineTo(pos.x, pos.y);
+  ctx.stroke();
+  lastX = pos.x; lastY = pos.y;
+}
+function endDraw(){ drawing = false; }
+
+function wireCanvasEvents(){
+  const canvas = $("#board");
+  canvas.addEventListener("mousedown", startDraw);
+  canvas.addEventListener("mousemove", moveDraw);
+  window.addEventListener("mouseup", endDraw);
+  canvas.addEventListener("touchstart", startDraw, { passive:false });
+  canvas.addEventListener("touchmove", moveDraw, { passive:false });
+  canvas.addEventListener("touchend", endDraw);
+}
+wireCanvasEvents();
+window.addEventListener("resize", () => { if ($("#screen-play").classList.contains("active")) setupCanvas(); });
+
+$all(".swatch").forEach(sw => {
+  sw.addEventListener("click", () => {
+    $all(".swatch").forEach(s => s.classList.remove("selected"));
+    sw.classList.add("selected");
+    currentColor = sw.dataset.color;
+    isEraser = false;
+    $("#eraserBtn").classList.remove("selected");
+  });
+});
+$("#sizeRange").addEventListener("input", (e) => currentSize = parseInt(e.target.value, 10));
+$("#eraserBtn").addEventListener("click", () => {
+  isEraser = !isEraser;
+  $("#eraserBtn").classList.toggle("selected", isEraser);
+});
+$("#clearBtn").addEventListener("click", clearCanvas);
+
+/* =========================================================
+   CRONÓMETRO Y TURNO DE JUEGO
+   ========================================================= */
+function beginDrawing(){
+  state.roundResolved = false;
+  state.timeLeft = state.turnSeconds;
+  $("#playTurnTag").textContent = `Dibuja: ${state.players[state.currentDrawerIdx]}`;
+  $("#playCatLabel").textContent = WORD_BANK[state.currentCatKey].label;
+  $("#playWord").textContent = state.currentWord;
+  $("#timerLabel").textContent = state.timeLeft;
+  $("#timerLabel").classList.remove("warn");
+  showScreen("screen-play");
+  setupCanvas();
+
+  clearInterval(state.timer);
+  state.timer = setInterval(() => {
+    state.timeLeft--;
+    $("#timerLabel").textContent = state.timeLeft;
+    if (state.timeLeft <= 10) $("#timerLabel").classList.add("warn");
+    if (state.timeLeft <= 0){
+      clearInterval(state.timer);
+      resolveRound(false);
+    }
+  }, 1000);
+}
+
+function resolveRound(guessedCorrectly){
+  if (state.roundResolved) return;
+  state.roundResolved = true;
+  clearInterval(state.timer);
+
+  const drawerIdx = state.currentDrawerIdx;
+  if (guessedCorrectly){
+    state.scores[drawerIdx] += 1;
+  }
+  state.history.unshift(`${state.players[drawerIdx]} dibujó "${state.currentWord}" — ${guessedCorrectly ? "✔ acertaron" : "✘ no se adivinó"}`);
+  state.turnCount++;
+
+  // ¿Alguien ganó?
+  const winnerIdx = state.scores.findIndex(s => s >= state.pointsToWin);
+  if (winnerIdx !== -1){
+    showWinner(winnerIdx);
+    return;
+  }
+
+  $("#roundIcon").textContent = guessedCorrectly ? "🎉" : "⏱️";
+  $("#roundTitle").textContent = guessedCorrectly ? "¡Lo adivinaron!" : "¡Se acabó el tiempo!";
+  $("#roundWordWas").textContent = state.currentWord;
+  $("#roundScores").textContent = scorePillHTML();
+  showScreen("screen-roundend");
+
+  // el siguiente turno le toca dibujar al otro jugador
+  state.currentDrawerIdx = (state.currentDrawerIdx + 1) % state.players.length;
+}
+
+$("#correctBtn").addEventListener("click", () => resolveRound(true));
+$("#passTurnBtn").addEventListener("click", () => resolveRound(false));
+$("#nextRoundBtn").addEventListener("click", startTurnFlow);
+
+/* =========================================================
+   GANADOR
+   ========================================================= */
+function showWinner(winnerIdx){
+  $("#winnerName").textContent = `¡${state.players[winnerIdx]} gana! 🎉`;
+  $("#winnerDetail").textContent = `Marcador final — ${scorePillHTML()}`;
+  showScreen("screen-winner");
+}
+
+$("#playAgainBtn").addEventListener("click", () => {
+  state.scores = [0, 0];
+  state.usedWords = new Set();
+  state.turnCount = 0;
+  state.currentDrawerIdx = 0;
+  state.history = [];
+  startTurnFlow();
+});
+$("#backSetupBtn").addEventListener("click", () => showScreen("screen-setup"));
+
+</script>
+</body>
+</html>
